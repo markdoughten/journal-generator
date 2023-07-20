@@ -8,4 +8,6 @@ venv/
 *.html
 *.csv
 *.txt
+*.env
 /files
+/resources
