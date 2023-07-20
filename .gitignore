@@ -1,0 +1,11 @@
+*.swp
+__pycache__
+.DS_store
+venv/
+*.jpg
+
+# data
+*.html
+*.csv
+*.txt
+/files
