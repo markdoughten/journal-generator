@@ -70,9 +70,10 @@ def clean_data(data, unwanted_strings):
     
     return new_data
 
-if __name__ == "__main__":
-    
+def run(path):    
     # directory
-    path = '../../files'
-    messages = directory(path)
-    print(messages)
+    history = directory(path)
+    return history
+
+if __name__ == "__main__":
+    run('../../files')
