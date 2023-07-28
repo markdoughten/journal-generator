@@ -5,6 +5,8 @@ import csv
 import sys
 import string
 import re
+import openai
+import tiktoken
 
 def load_data(file_path, extension):
     if extension in ['htm', 'html']:
@@ -70,10 +72,43 @@ def clean_data(data, unwanted_strings):
     
     return new_data
 
-def run(path):    
+def num_tokens(text, model):
+    """Return the number of tokens in a string."""
+    encoding = tiktoken.encoding_for_model(model)
+    return len(encoding.encode(text))
+
+def make_embeddings(model, batch_size, history, api_key):
+
+    embeddings = []
+    gpt_model = "gpt-3.5-turbo"     
+
+    for batch_start in range(0, len(history), batch_size):
+        batch_end = batch_start + batch_size
+        batch = history[batch_start:batch_end]
+        print(num_tokens(batch[0], gpt_model))
+        print(f"Batch {batch_start} to {batch_end-1}")
+        response = openai.Embedding.create(model=model, api_key=api_key, input=batch)
+        for i, be in enumerate(response["data"]):
+            assert i == be["index"]  # double check embeddings are in same order as input
+        batch_embeddings = [e["embedding"] for e in response["data"]]
+        embeddings.extend(batch_embeddings)
+
+    df = pd.DataFrame({"text": history, "embedding": embeddings})
+
+    return df
+
+def run(model, batch_size, path, api_key):    
+    
     # directory
     history = directory(path)
-    return history
+    df = make_embeddings(model, batch_size, history, api_key)
+
+    return df
 
 if __name__ == "__main__":
-    run('../../files')
+    
+    api_key = os.environ.get('OPENAI_API_KEY') 
+    model = "text-embedding-ada-002"
+    batch_size = 1000  
+    df = run(model, batch_size, '../../files', api_key)
+    df.to_csv('../../model')    
