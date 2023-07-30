@@ -5,8 +5,9 @@ import csv
 import sys
 import string
 import re
-import openai
 import tiktoken
+from openai.embeddings_utils import get_embedding
+import numpy as np
 
 def load_data(file_path, extension):
     if extension in ['htm', 'html']:
@@ -97,18 +98,41 @@ def make_embeddings(model, batch_size, history, api_key):
 
     return df
 
-def run(model, batch_size, path, api_key):    
+def convert_to_df(history):
+    
+    history = [item for sublist in history for item in sublist]
+    df = pd.DataFrame(history)
+    df = df.replace(np.nan, '', regex=True)
+   
+    # combine all columns into one
+    df['combined'] = df.apply(lambda row: ''.join([str(i) for i in row.values]), axis=1)
+    df = df[['combined']]
+    
+    # omit file lines that are too long to embed
+    encoding = tiktoken.get_encoding(embedding_encoding)
+    df["n_tokens"] = df.combined.apply(lambda x: len(encoding.encode(x)))
+    df = df[df.n_tokens <= max_tokens].tail(top_n)
+
+    return df 
+
+def run(embedding_encoding, batch_size, api_key, max_tokens):    
     
     # directory
     history = directory(path)
-    df = make_embeddings(model, batch_size, history, api_key)
+    df = convert_to_df(history)
+    #df = make_embeddings(model, batch_size, history, api_key)
 
     return df
 
 if __name__ == "__main__":
     
     api_key = os.environ.get('OPENAI_API_KEY') 
+    
     model = "text-embedding-ada-002"
-    batch_size = 1000  
-    df = run(model, batch_size, '../../files', api_key)
-    df.to_csv('../../model')    
+    embedding_encoding = "cl100k_base"
+    batch_size = 1000
+    max_tokens = 8000
+    path =  '../../files'
+    
+    df = run(embedding_encoding, batch_size, api_key, max_tokens)
+    #df.to_csv('../../search/history.csv')    
