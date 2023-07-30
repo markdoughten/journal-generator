@@ -5,6 +5,9 @@ import csv
 import sys
 import string
 import re
+import tiktoken
+from openai.embeddings_utils import get_embedding
+import numpy as np
 
 def load_data(file_path, extension):
     if extension in ['htm', 'html']:
@@ -70,10 +73,66 @@ def clean_data(data, unwanted_strings):
     
     return new_data
 
-def run(path):    
+def num_tokens(text, model):
+    """Return the number of tokens in a string."""
+    encoding = tiktoken.encoding_for_model(model)
+    return len(encoding.encode(text))
+
+def make_embeddings(model, batch_size, history, api_key):
+
+    embeddings = []
+    gpt_model = "gpt-3.5-turbo"     
+
+    for batch_start in range(0, len(history), batch_size):
+        batch_end = batch_start + batch_size
+        batch = history[batch_start:batch_end]
+        print(num_tokens(batch[0], gpt_model))
+        print(f"Batch {batch_start} to {batch_end-1}")
+        response = openai.Embedding.create(model=model, api_key=api_key, input=batch)
+        for i, be in enumerate(response["data"]):
+            assert i == be["index"]  # double check embeddings are in same order as input
+        batch_embeddings = [e["embedding"] for e in response["data"]]
+        embeddings.extend(batch_embeddings)
+
+    df = pd.DataFrame({"text": history, "embedding": embeddings})
+
+    return df
+
+def convert_to_df(history):
+    
+    history = [item for sublist in history for item in sublist]
+    df = pd.DataFrame(history)
+    df = df.replace(np.nan, '', regex=True)
+   
+    # combine all columns into one
+    df['combined'] = df.apply(lambda row: ''.join([str(i) for i in row.values]), axis=1)
+    df = df[['combined']]
+    
+    # omit file lines that are too long to embed
+    encoding = tiktoken.get_encoding(embedding_encoding)
+    df["n_tokens"] = df.combined.apply(lambda x: len(encoding.encode(x)))
+    df = df[df.n_tokens <= max_tokens].tail(top_n)
+
+    return df 
+
+def run(embedding_encoding, batch_size, api_key, max_tokens):    
+    
     # directory
     history = directory(path)
-    return history
+    df = convert_to_df(history)
+    #df = make_embeddings(model, batch_size, history, api_key)
+
+    return df
 
 if __name__ == "__main__":
-    run('../../files')
+    
+    api_key = os.environ.get('OPENAI_API_KEY') 
+    
+    model = "text-embedding-ada-002"
+    embedding_encoding = "cl100k_base"
+    batch_size = 1000
+    max_tokens = 8000
+    path =  '../../files'
+    
+    df = run(embedding_encoding, batch_size, api_key, max_tokens)
+    #df.to_csv('../../search/history.csv')    

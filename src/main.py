@@ -1,23 +1,24 @@
 # custom libraries
-from lib import loading, requests, helpers
+from lib import loading, request, helpers
+import os
+import sys
 
 def main():
         
-        # load history and train model
-        history = loading.run('../../files')
-        trained_model = requests.load(history)
-        
-        # get questions from users
-        while True:
-            question = input('>')
-            if question.lower('exit')
-                break
-            
-            # print the response 
-            print(trained_model(question))
+        #embedding_model = 'text-embedding-ada-002'
+        engine = 'text-davinci-002'
+        api_key = os.getenv("OPENAI_API_KEY")  
     
-        return 
+        if len(sys.argv) != 2:
+            print("Usage: python script.py 'your question'")
+            sys.exit(1)
+
+        question = sys.argv[1]
+        response = requests.send(question, engine, api_key)
+        
+        return response
 
 if __name__ == '__main__':
-        main()
+        print(main())
+
 
