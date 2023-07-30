@@ -1,5 +1,5 @@
 # custom libraries
-from lib import loading, requests, helpers
+from lib import loading, request, helpers
 import os
 import sys
 

@@ -11,4 +11,4 @@ venv/
 *.env
 /files
 /resources
-/models
+/search
