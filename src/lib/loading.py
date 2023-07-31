@@ -29,11 +29,7 @@ def directory(directory_path):
     # initialize a list to hold all the texts
     all_texts = []
     unsupported = set([])
-    unwanted_strings = ['False', 'Normal', 'X-GOOGLE-CALENDAR-CONTENT-DISPLAY:CHIP\n', \
-                        'X-GOOGLE-CALENDAR-CONTENT-ICON:https://calendar.google.com/googlecalendar/i', \
-                        ' mages/cake.gif\n', 'CLASS:PUBLIC\n', \
-                        ' mages/cake.gif', 'X-GOOGLE-CALENDAR-CONTENT-DISPLAY:CHIP']
-
+    
     # loop through all files and subdirectories in the directory
     for root, dirs, files in os.walk(directory_path):
         for filename in files:
@@ -41,15 +37,21 @@ def directory(directory_path):
             extension = file_path.split('.')[-1].lower()
             texts = load_data(file_path, extension)
             if texts:
-                texts = clean_data(texts, unwanted_strings)
+                texts = clean_data(texts)
                 all_texts.append(texts)
             else:
                 unsupported.add(extension)
 
     return all_texts
 
-def clean_item(item, unwanted_strings):
-    
+def clean_item(item):
+   
+    unwanted_strings = ['False', 'Normal', 'X-GOOGLE-CALENDAR-CONTENT-DISPLAY:CHIP\n', \
+                        'X-GOOGLE-CALENDAR-CONTENT-ICON:https://calendar.google.com/googlecalendar/i', \
+                        'END:VEVENT', 'BEGIN:VEVENT', 'CLASS:PUBLIC', 'TRANSP:OPAQUE',  'SEQUENCE:0'\
+                        ' mages/cake.gif', 'X-GOOGLE-CALENDAR-CONTENT-DISPLAY:CHIP', '+0000']
+
+ 
     cleaned_item = ''.join(ch for ch in item if ord(ch) < 128)  # remove non-ASCII
     cleaned_item = re.sub(r'<a.*?>.*?</a>', '', cleaned_item)  # remove <a> tags
     cleaned_item = cleaned_item.replace('\n', '')
@@ -59,43 +61,30 @@ def clean_item(item, unwanted_strings):
     
     return cleaned_item
 
-def clean_data(data, unwanted_strings):
+def clean_data(data):
     
     new_data = []
     
     for item in data:
         if isinstance(item, list):
-            new_data.append(clean_data(item, unwanted_strings))
+            new_data.append(clean_data(item))
         elif isinstance(item, str) and item != '':  # remove empty strings
-            cleaned_item = clean_item(item, unwanted_strings)
+            cleaned_item = clean_item(item)
             if cleaned_item != '':  # remove strings that become empty after cleaning
                 new_data.append(cleaned_item)
     
     return new_data
 
-def num_tokens(text, model):
-    """Return the number of tokens in a string."""
-    encoding = tiktoken.encoding_for_model(model)
-    return len(encoding.encode(text))
+def make_embeddings(df, max_tokens, encoding, model):
 
-def make_embeddings(model, batch_size, history, api_key):
-
-    embeddings = []
-    gpt_model = "gpt-3.5-turbo"     
-
-    for batch_start in range(0, len(history), batch_size):
-        batch_end = batch_start + batch_size
-        batch = history[batch_start:batch_end]
-        print(num_tokens(batch[0], gpt_model))
-        print(f"Batch {batch_start} to {batch_end-1}")
-        response = openai.Embedding.create(model=model, api_key=api_key, input=batch)
-        for i, be in enumerate(response["data"]):
-            assert i == be["index"]  # double check embeddings are in same order as input
-        batch_embeddings = [e["embedding"] for e in response["data"]]
-        embeddings.extend(batch_embeddings)
-
-    df = pd.DataFrame({"text": history, "embedding": embeddings})
-
+    encoding = tiktoken.get_encoding(encoding)
+    df["n_tokens"] = df['text'].apply(lambda x: len(encoding.encode(x)))
+    
+    # filter out large text
+    df = df[df.n_tokens <= max_tokens].copy()
+    df["embedding"] = df['text'].apply(lambda x: get_embedding(x, engine=model))
+    df = df.dropna(how='all')
+    
     return df
 
 def convert_to_df(history):
@@ -105,22 +94,17 @@ def convert_to_df(history):
     df = df.replace(np.nan, '', regex=True)
    
     # combine all columns into one
-    df['combined'] = df.apply(lambda row: ''.join([str(i) for i in row.values]), axis=1)
-    df = df[['combined']]
+    df['text'] = df.apply(lambda row: ''.join([str(i) for i in row.values]), axis=1)
+    df = df[['text']]
     
-    # omit file lines that are too long to embed
-    encoding = tiktoken.get_encoding(embedding_encoding)
-    df["n_tokens"] = df.combined.apply(lambda x: len(encoding.encode(x)))
-    df = df[df.n_tokens <= max_tokens].tail(top_n)
-
     return df 
 
-def run(embedding_encoding, batch_size, api_key, max_tokens):    
+def run(model, encoding, api_key, max_tokens, path):    
     
     # directory
     history = directory(path)
     df = convert_to_df(history)
-    #df = make_embeddings(model, batch_size, history, api_key)
+    df = make_embeddings(df, max_tokens, encoding, model)
 
     return df
 
@@ -129,10 +113,9 @@ if __name__ == "__main__":
     api_key = os.environ.get('OPENAI_API_KEY') 
     
     model = "text-embedding-ada-002"
-    embedding_encoding = "cl100k_base"
-    batch_size = 1000
+    encoding = "cl100k_base"
     max_tokens = 8000
     path =  '../../files'
     
-    df = run(embedding_encoding, batch_size, api_key, max_tokens)
-    #df.to_csv('../../search/history.csv')    
+    df = run(model, encoding, api_key, max_tokens, path)
+    df.to_csv('../../search/embedding_history.csv', index=False)    
