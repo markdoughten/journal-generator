@@ -6,7 +6,7 @@ import pandas as pd
 
 def main():
         
-        model = "gpt-4"
+        model = "gpt-3.5-turbo"
         embedding = "text-embedding-ada-002"
         df = loading.get_embedding('../search/embedding_history.csv')
         token_budget= 5000       
