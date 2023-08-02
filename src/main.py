@@ -2,19 +2,21 @@
 from lib import loading, request, helper
 import os
 import sys
+import pandas as pd
 
 def main():
         
-        #embedding_model = 'text-embedding-ada-002'
-        engine = 'text-davinci-002'
-        api_key = os.getenv("OPENAI_API_KEY")  
-    
+        model = "gpt-3.5-turbo"
+        embedding = "text-embedding-ada-002"
+        df = loading.get_embedding('../search/embedding_history.csv')
+        token_budget= 5000       
+ 
         if len(sys.argv) != 2:
             print("Usage: python script.py 'your question'")
             sys.exit(1)
 
-        question = sys.argv[1]
-        response = requests.send(question, engine, api_key)
+        query = sys.argv[1]
+        response = request.ask(query, df, model, token_budget, embedding, True)
         
         return response
 
