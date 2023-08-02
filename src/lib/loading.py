@@ -8,6 +8,7 @@ import re
 import tiktoken
 from openai.embeddings_utils import get_embedding
 import numpy as np
+import ast
 
 def load_data(file_path, extension):
     if extension in ['htm', 'html']:
@@ -106,6 +107,11 @@ def run(model, encoding, api_key, max_tokens, path):
     df = convert_to_df(history)
     df = make_embeddings(df, max_tokens, encoding, model)
 
+    return df
+
+def get_embedding(path):
+    df = pd.read_csv(path)
+    df['embedding'] = df['embedding'].apply(ast.literal_eval)
     return df
 
 if __name__ == "__main__":
