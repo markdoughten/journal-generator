@@ -9,7 +9,7 @@ def main():
         model = "gpt-3.5-turbo"
         embedding = "text-embedding-ada-002"
         df = loading.get_embedding('../search/embedding_history.csv')
-        token_budget= 5000       
+        token_budget= 10000       
  
         if len(sys.argv) != 2:
             print("Usage: python script.py 'your question'")

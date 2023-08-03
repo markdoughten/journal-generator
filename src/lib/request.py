@@ -38,11 +38,10 @@ def strings_ranked_by_relatedness(query, df, embedding, relatedness_fn=lambda x,
     return strings[:top_n], relatednesses[:top_n]
 
 def query_message(query, df, model, token_budget, embedding):
-    """Return a message for GPT, with relevant source texts pulled from a dataframe."""
     
     strings, relatednesses = strings_ranked_by_relatedness(query, df, embedding)
-    introduction = 'Write a journal entry about a date based on the historical information available'
-    question = f"\n\nDate: {query}"
+    introduction = 'Write a journal entry that answers the question using the relevant events below:'
+    question = f"\n\nQuestion: {query}"
     message = introduction
     
     for string in strings:
