@@ -20,5 +20,6 @@ built using template version 3.
 in the root directory, add two new directories: files and source. In /files, upload any files you want referenced when making a journal.\
 \
 run the following script and generate the embedding matrix.\
+\
 ```python loading.py```
 
