@@ -1,7 +1,6 @@
 # journal-generator
 # about
-
-A tool that creates a journal entry automatically based on .
+A tool that creates a journal entry automatically based on data currently in the files directory.
 
 # examples
 
@@ -16,3 +15,10 @@ Overall, it was a peaceful day where I had the chance to take care of personal m
 
 # verison
 built using template version 3.
+
+# instructions
+in the root directory, add two new directories: files and source. In /files, upload any files you want referenced when making a journal.\
+\
+run the following script and generate the embedding matrix.
+```python loading.py```
+
