@@ -13,7 +13,7 @@ In the morning, I checked my emails and came across a message from Bobby. He ask
 Later in the day, I received a text from Bobby's number. He informed me that his mom was inviting me to their Thanksgiving gathering, but I had already made plans to go to Aunt Kathy's and then to the shore. I thanked him for the invitation and let him know about my prior commitments.
 Overall, it was a peaceful day where I had the chance to take care of personal matters and enjoy some leisure time.
 
-# verison
+# version
 built using template version 3.
 
 # instructions
