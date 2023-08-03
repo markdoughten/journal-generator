@@ -90,38 +90,39 @@ def make_embeddings(df, max_tokens, encoding, model):
 
 def convert_to_df(history):
     
-    history = [item for sublist in history for item in sublist]
     df = pd.DataFrame(history)
-    df = df.replace(np.nan, '', regex=True)
+    df = df.fillna('')
    
     # combine all columns into one
-    df['text'] = df.apply(lambda row: ''.join([str(i) for i in row.values]), axis=1)
+    df['text'] = df.apply(lambda row: ' '.join(row.astype(str)), axis=1)
     df = df[['text']]
     
     return df 
 
-def run(model, encoding, api_key, max_tokens, path):    
+def run(model, encoding, max_tokens, path, embedding=True):    
     
     # directory
     history = directory(path)
     df = convert_to_df(history)
-    df = make_embeddings(df, max_tokens, encoding, model)
+    
+    if embedding:
+        df = make_embeddings(df, max_tokens, encoding, model)
 
     return df
 
-def get_embedding(path):
+def get_embedding_matrix(path):
+    
     df = pd.read_csv(path)
     df['embedding'] = df['embedding'].apply(ast.literal_eval)
+    
     return df
 
 if __name__ == "__main__":
     
-    api_key = os.environ.get('OPENAI_API_KEY') 
-    
     model = "text-embedding-ada-002"
     encoding = "cl100k_base"
-    max_tokens = 8000
+    max_tokens = 8191
     path =  '../../files'
     
-    df = run(model, encoding, api_key, max_tokens, path)
+    df = run(model, encoding, max_tokens, path, True)
     df.to_csv('../../search/embedding_history.csv', index=False)    
