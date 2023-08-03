@@ -25,7 +25,7 @@ def num_tokens(text, model):
     return len(encoding.encode(text))
 
 # search function
-def strings_ranked_by_relatedness(query, df, embedding, relatedness_fn=lambda x, y: 1 - spatial.distance.cosine(x, y), top_n=5):
+def strings_ranked_by_relatedness(query, df, embedding, relatedness_fn=lambda x, y: 1 - spatial.distance.cosine(x, y), top_n=10):
     
     query_embedding_response = openai.Embedding.create(model=embedding, input=query)
     query_embedding = query_embedding_response["data"][0]["embedding"]
