@@ -76,35 +76,50 @@ def clean_data(data):
     
     return new_data
 
+def split_text(text, encoding, max_tokens):
+    tokens = encoding.encode(text)
+    chunks = [tokens[i:i + max_tokens] for i in range(0, len(tokens), max_tokens)]
+    return [encoding.decode(chunk) for chunk in chunks]
+
 def make_embeddings(df, max_tokens, encoding, model):
 
     encoding = tiktoken.get_encoding(encoding)
-    df["n_tokens"] = df['text'].apply(lambda x: len(encoding.encode(x)))
     
-    # filter out large text
-    df = df[df.n_tokens <= max_tokens].copy()
-    df["embedding"] = df['text'].apply(lambda x: get_embedding(x, engine=model))
-    df = df.dropna(how='all')
+    new_rows = []
+    for idx, row in df.iterrows():
+        text_chunks = split_text(row['text'], encoding, max_tokens)
+        for chunk in text_chunks:
+            new_row = row.copy()
+            new_row['text'] = chunk
+            new_row['n_tokens'] = len(encoding.encode(chunk))
+            new_rows.append(new_row)
     
-    return df
+    df_expanded = pd.DataFrame(new_rows)
+    df_expanded = df_expanded.dropna(how='all')
+    df_expanded["embedding"] = df_expanded['text'].apply(lambda x: get_embedding(x, engine=model))
+    
+    return df_expanded
 
 def convert_to_df(history):
     
     df = pd.DataFrame(history)
     df = df.fillna('')
-   
+    
     # combine all columns into one
-    df['text'] = df.apply(lambda row: ' '.join(row.astype(str)), axis=1)
+    df['text'] = df.apply(lambda row: ''.join(row.astype(str)), axis=1)
     df = df[['text']]
     
     return df 
 
-def run(model, encoding, max_tokens, path, embedding=True):    
+def run(model, encoding, max_tokens, path, history=False, embedding=True):    
     
     # directory
     history = directory(path)
     df = convert_to_df(history)
     
+    if history:   
+        df.to_csv('../../search/history.csv', index=False)    
+ 
     if embedding:
         df = make_embeddings(df, max_tokens, encoding, model)
 
@@ -121,8 +136,8 @@ if __name__ == "__main__":
     
     model = "text-embedding-ada-002"
     encoding = "cl100k_base"
-    max_tokens = 8191
+    max_tokens = 1000
     path =  '../../files'
     
-    df = run(model, encoding, max_tokens, path, True)
+    df = run(model, encoding, max_tokens, path, True, True)
     df.to_csv('../../search/embedding_history.csv', index=False)    
