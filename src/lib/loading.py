@@ -11,6 +11,7 @@ import numpy as np
 import ast
 
 def load_data(file_path, extension):
+    
     if extension in ['htm', 'html']:
         with open(file_path, 'r', encoding='utf8') as file:
             soup = BeautifulSoup(file.read(), 'html.parser')
@@ -20,10 +21,32 @@ def load_data(file_path, extension):
         with open(file_path, 'r', encoding='unicode_escape') as file:
             return file.readlines()
     elif extension == 'csv':
-        with open(file_path, 'r', encoding='unicode_escape') as file:
-            return list(csv.reader(file))
+        return process_csv(file_path)
     else:
         return []
+
+def process_csv(file_path):
+        
+    # load in as a pandas dataframe for csv
+    df = pd.read_csv(file_path, encoding= 'unicode_escape')
+    df['combined'] = df.apply(combine_row_values, axis=1)
+    df = df["combined"]        
+    
+# Convert DataFrame to list of rows
+    rows = [list(df.columns)]  # start with column headers
+    for _, row in df.iterrows():
+        rows.append(list(row))
+    
+    return rows
+
+def combine_row_values(row):
+    
+    combined_values = []
+    
+    for column_name, value in row.iteritems():
+        if pd.notna(value):
+            combined_values.append(f"{column_name}: {str(value).strip()}")
+    return "; ".join(combined_values)
 
 def directory(directory_path):
     
@@ -52,7 +75,6 @@ def clean_item(item):
                         'END:VEVENT', 'BEGIN:VEVENT', 'CLASS:PUBLIC', 'TRANSP:OPAQUE',  'SEQUENCE:0'\
                         ' mages/cake.gif', 'X-GOOGLE-CALENDAR-CONTENT-DISPLAY:CHIP', '+0000']
 
- 
     cleaned_item = ''.join(ch for ch in item if ord(ch) < 128)  # remove non-ASCII
     cleaned_item = re.sub(r'<a.*?>.*?</a>', '', cleaned_item)  # remove <a> tags
     cleaned_item = cleaned_item.replace('\n', '')
@@ -136,7 +158,7 @@ if __name__ == "__main__":
     
     model = "text-embedding-ada-002"
     encoding = "cl100k_base"
-    max_tokens = 1000
+    max_tokens = 200
     path =  '../../files'
     
     df = run(model, encoding, max_tokens, path, True, True)
