@@ -30,9 +30,9 @@ def process_csv(file_path):
     # load in as a pandas dataframe for csv
     df = pd.read_csv(file_path, encoding= 'unicode_escape')
     df['combined'] = df.apply(combine_row_values, axis=1)
-    df = df["combined"]        
+    df = df[["combined"]]        
     
-# Convert DataFrame to list of rows
+    # convert DataFrame to list of rows
     rows = [list(df.columns)]  # start with column headers
     for _, row in df.iterrows():
         rows.append(list(row))
