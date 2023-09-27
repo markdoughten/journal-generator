@@ -17,7 +17,7 @@ Overall, it was a peaceful day where I had the chance to take care of personal m
 built using template version 3.
 
 # instructions
-in the root directory, add two new directories: files and source. In /files, upload any files you want referenced when making a journal.\
+in the root directory, add two new directories: files and search. In /files, upload any files you want referenced when making a journal.\
 \
 run the following script and generate the embedding matrix.\
 \
