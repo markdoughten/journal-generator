@@ -34,7 +34,7 @@ def process_csv(file_path):
     
     # convert DataFrame to list of rows
     rows = [list(df.columns)]  # start with column headers
-    for _, row in df.iterrows():
+    for i, row in df.iloc[1:].iterrows():
         rows.append(list(row))
     
     return rows
@@ -109,27 +109,28 @@ def make_embeddings(df, max_tokens, encoding, model):
     
     new_rows = []
     for idx, row in df.iterrows():
-        text_chunks = split_text(row['text'], encoding, max_tokens)
+        text_chunks = split_text(row['combined'], encoding, max_tokens)
         for chunk in text_chunks:
             new_row = row.copy()
-            new_row['text'] = chunk
+            new_row['combined'] = chunk
             new_row['n_tokens'] = len(encoding.encode(chunk))
             new_rows.append(new_row)
     
     df_expanded = pd.DataFrame(new_rows)
     df_expanded = df_expanded.dropna(how='all')
-    df_expanded["embedding"] = df_expanded['text'].apply(lambda x: get_embedding(x, engine=model))
+    df_expanded["embedding"] = df_expanded['combined'].apply(lambda x: get_embedding(x, engine=model))
     
     return df_expanded
 
 def convert_to_df(history):
-    
-    df = pd.DataFrame(history)
+  
+    df = pd.DataFrame({'combined': history})
+    df = df.explode('combined', ignore_index=True)
+
+    # Convert the nested lists to strings
+    df['combined'] = df['combined'].str[0]
+    df = df[df['combined'] != 'combined']
     df = df.fillna('')
-    
-    # combine all columns into one
-    df['text'] = df.apply(lambda row: ''.join(row.astype(str)), axis=1)
-    df = df[['text']]
     
     return df 
 
@@ -138,7 +139,9 @@ def run(model, encoding, max_tokens, path, history=False, embedding=True):
     # directory
     history = directory(path)
     df = convert_to_df(history)
-    
+   
+    print(df)
+ 
     if history:   
         df.to_csv('../../search/history.csv', index=False)    
  
@@ -158,7 +161,7 @@ if __name__ == "__main__":
     
     model = "text-embedding-ada-002"
     encoding = "cl100k_base"
-    max_tokens = 200
+    max_tokens = 1000
     path =  '../../files'
     
     df = run(model, encoding, max_tokens, path, True, True)

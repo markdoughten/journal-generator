@@ -25,11 +25,11 @@ def num_tokens(text, model):
     return len(encoding.encode(text))
 
 # search function
-def strings_ranked_by_relatedness(query, df, embedding, relatedness_fn=lambda x, y: 1 - spatial.distance.cosine(x, y), top_n=15):
+def strings_ranked_by_relatedness(query, df, embedding, relatedness_fn=lambda x, y: 1 - spatial.distance.cosine(x, y), top_n=100):
     
     query_embedding_response = openai.Embedding.create(model=embedding, input=query)
     query_embedding = query_embedding_response["data"][0]["embedding"]
-    strings_and_relatednesses = [(row["text"], relatedness_fn(query_embedding, row["embedding"]))for i, row in df.iterrows()]
+    strings_and_relatednesses = [(row["combined"], relatedness_fn(query_embedding, row["embedding"]))for i, row in df.iterrows()]
     strings_and_relatednesses.sort(key=lambda x: x[1], reverse=True)
     strings, relatednesses = zip(*strings_and_relatednesses)
     
@@ -38,7 +38,7 @@ def strings_ranked_by_relatedness(query, df, embedding, relatedness_fn=lambda x,
 def query_message(query, df, model, token_budget, embedding):
     
     strings, relatednesses = strings_ranked_by_relatedness(query, df, embedding)
-    introduction = 'Write a journal entry that answers the question using the relevant events below:'
+    introduction = 'Write a financial report that answers the question using the relevant events below:'
     question = f"\n\nQuestion: {query}"
     message = introduction
     
@@ -61,7 +61,7 @@ def journal(query, df, model, token_budget, embedding, print_message=False):
         print(message)
     
     messages = [
-        {"role": "system", "content": "You answer questions like journal entries."},
+        {"role": "system", "content": "You answer questions like finance reports. Report transactions in order"},
         {"role": "user", "content": message}]
 
     response = openai.ChatCompletion.create(
