@@ -9,6 +9,7 @@ import tiktoken
 from openai.embeddings_utils import get_embedding
 import numpy as np
 import ast
+import itertools
 
 def load_data(file_path, extension):
     
@@ -16,10 +17,17 @@ def load_data(file_path, extension):
         with open(file_path, 'r', encoding='utf8') as file:
             soup = BeautifulSoup(file.read(), 'html.parser')
             text = soup.get_text()
-            return text.split('\n')
-    elif extension in ['txt', 'ics']:
+            return [' '.join(text.split('\n'))]
+    elif extension == 'txt':
         with open(file_path, 'r', encoding='unicode_escape') as file:
-            return file.readlines()
+            return [' '.join(file.readlines())]
+    elif extension == 'ics':
+        with open(file_path, 'r', encoding='unicode_escape') as file:
+            event_list = []
+            for section in ''.join(file.readlines()).split("BEGIN:"):
+                if section.startswith("VEVENT"):
+                    event_list.append(section)
+            return event_list
     elif extension == 'csv':
         return process_csv(file_path)
     else:
@@ -30,14 +38,9 @@ def process_csv(file_path):
     # load in as a pandas dataframe for csv
     df = pd.read_csv(file_path, encoding= 'unicode_escape')
     df['combined'] = df.apply(combine_row_values, axis=1)
-    df = df[["combined"]]        
+    rows = df["combined"].tolist()        
     
-    # convert DataFrame to list of rows
-    rows = [list(df.columns)]  # start with column headers
-    for i, row in df.iloc[1:].iterrows():
-        rows.append(list(row))
-    
-    return rows
+    return rows[1:]
 
 def combine_row_values(row):
     
@@ -65,23 +68,21 @@ def directory(directory_path):
                 all_texts.append(texts)
             else:
                 unsupported.add(extension)
-
+    
     return all_texts
 
 def clean_item(item):
    
-    unwanted_strings = ['False', 'Normal', 'X-GOOGLE-CALENDAR-CONTENT-DISPLAY:CHIP\n', \
-                        'X-GOOGLE-CALENDAR-CONTENT-ICON:https://calendar.google.com/googlecalendar/i', \
-                        'END:VEVENT', 'BEGIN:VEVENT', 'CLASS:PUBLIC', 'TRANSP:OPAQUE',  'SEQUENCE:0'\
-                        ' mages/cake.gif', 'X-GOOGLE-CALENDAR-CONTENT-DISPLAY:CHIP', '+0000']
-
     cleaned_item = ''.join(ch for ch in item if ord(ch) < 128)  # remove non-ASCII
     cleaned_item = re.sub(r'<a.*?>.*?</a>', '', cleaned_item)  # remove <a> tags
-    cleaned_item = cleaned_item.replace('\n', '')
-    
-    for unwanted in unwanted_strings:
-        cleaned_item = cleaned_item.replace(unwanted, '')  # remove unwanted strings
-    
+    cleaned_item = cleaned_item.replace("\n", "")
+    cleaned_item = re.sub(r'\s{2,}', ' ', cleaned_item)
+    remove_props = ['X-GOOGLE-CALENDAR-CONTENT-DISPLAY', 'X-GOOGLE-CALENDAR-CONTENT-ICON', 'CLASS', 'SEQUENCE', 'LAST-MODIFIED', 'UID']
+
+    for prop in remove_props:
+        pattern = f"{prop}:[^A-Z]*" if prop != 'UID' else f"{prop}:[\w-]+@[\w\.]+"
+        cleaned_item = re.sub(pattern, '', cleaned_item)
+     
     return cleaned_item
 
 def clean_data(data):
@@ -109,39 +110,35 @@ def make_embeddings(df, max_tokens, encoding, model):
     
     new_rows = []
     for idx, row in df.iterrows():
-        text_chunks = split_text(row['combined'], encoding, max_tokens)
+        text_chunks = split_text(row['text'], encoding, max_tokens)
         for chunk in text_chunks:
             new_row = row.copy()
-            new_row['combined'] = chunk
+            new_row['text'] = chunk
             new_row['n_tokens'] = len(encoding.encode(chunk))
             new_rows.append(new_row)
     
     df_expanded = pd.DataFrame(new_rows)
     df_expanded = df_expanded.dropna(how='all')
-    df_expanded["embedding"] = df_expanded['combined'].apply(lambda x: get_embedding(x, engine=model))
+    df_expanded["embedding"] = df_expanded['text'].apply(lambda x: get_embedding(x, engine=model))
     
     return df_expanded
 
 def convert_to_df(history):
-  
-    df = pd.DataFrame({'combined': history})
-    df = df.explode('combined', ignore_index=True)
-
-    # Convert the nested lists to strings
-    df['combined'] = df['combined'].str[0]
-    df = df[df['combined'] != 'combined']
-    df = df.fillna('')
     
+    # flatten the nested list
+    flattened_list = [item for sublist in history for item in sublist]
+
+    # create DataFrame
+    df = pd.DataFrame(flattened_list, columns=['text']) 
+     
     return df 
 
 def run(model, encoding, max_tokens, path, history=False, embedding=True):    
     
     # directory
-    history = directory(path)
-    df = convert_to_df(history)
+    directory(path)
+    df = convert_to_df(directory(path))
    
-    print(df)
- 
     if history:   
         df.to_csv('../../search/history.csv', index=False)    
  
